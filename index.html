@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowTech - Water Flow</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #eaf7ff;
+            color: #28516b;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 25px;
+            background: #bde7fa;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 32px;
+            color: #247da5;
+        }
+
+        header p {
+            margin-top: 8px;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: auto;
+        }
+
+        .cards {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            flex: 1;
+            min-width: 220px;
+            box-shadow: 0 4px 12px #c8e5f2;
+            text-align: center;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .angka {
+            font-size: 32px;
+            font-weight: bold;
+            color: #269ac5;
+        }
+
+        .penjelasan {
+            font-size: 13px;
+            margin-top: 10px;
+            color: #66899c;
+        }
+
+        .grafik {
+            background: white;
+            padding: 20px;
+            border-radius: 18px;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px #c8e5f2;
+        }
+
+        canvas {
+            width: 100%;
+            height: 220px;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: #d5f3e5;
+            border-radius: 15px;
+            color: #24764e;
+        }
+
+        .info {
+            background: white;
+            padding: 20px;
+            border-radius: 18px;
+            margin-top: 20px;
+            line-height: 1.7;
+        }
+
+        @media (max-width: 500px) {
+            header h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <header>
+        <h1>💧 FlowTech</h1>
+        <p>Pemantauan Aliran Air</p>
+    </header>
+
+    <div class="cards">
+
+        <div class="card">
+            <h2>💦 Debit Air</h2>
+            <div class="angka" id="debit">0.00</div>
+            <p>Liter / Menit</p>
+            <p class="penjelasan">
+                Menunjukkan banyaknya air yang mengalir
+                setiap menit.
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>🌊 Total Volume</h2>
+            <div class="angka" id="volume">0.00</div>
+            <p>Liter</p>
+            <p class="penjelasan">
+                Menunjukkan jumlah seluruh air
+                yang sudah mengalir.
+            </p>
+        </div>
+
+    </div>
+
+    <div class="grafik">
+        <h2>📊 Grafik Aliran Air</h2>
+        <canvas id="grafikAir"></canvas>
+    </div>
+
+    <div class="status" id="status">
+        ● Menunggu koneksi ESP32
+    </div>
+
+    <div class="info">
+        <h2>💧 Cara Kerja FlowTech</h2>
+        <p>
+            1. Sensor YF-S201 mendeteksi aliran air.
+        </p>
+        <p>
+            2. ESP32 mengolah data dari sensor.
+        </p>
+        <p>
+            3. Data dikirim melalui Wi-Fi.
+        </p>
+        <p>
+            4. Website FlowTech menampilkan hasil
+            pengukuran secara langsung.
+        </p>
+    </div>
+
+</div>
+
+<script>
+    const canvas = document.getElementById("grafikAir");
+    const ctx = canvas.getContext("2d");
+
+    let dataGrafik = [];
+
+    function updateFromESP32(data) {
+        document.getElementById("debit").textContent =
+            Number(data.debit).toFixed(2);
+
+        document.getElementById("volume").textContent =
+            Number(data.volume).toFixed(2);
+
+        document.getElementById("status").textContent =
+            "● ESP32 Terhubung";
+
+        dataGrafik.push(Number(data.debit));
+
+        if (dataGrafik.length > 20) {
+            dataGrafik.shift();
+        }
+
+        gambarGrafik();
+    }
+
+    function gambarGrafik() {
+        const lebar = canvas.clientWidth;
+        const tinggi = 220;
+        const rasio = window.devicePixelRatio || 1;
+
+        canvas.width = lebar * rasio;
+        canvas.height = tinggi * rasio;
+
+        ctx.setTransform(rasio, 0, 0, rasio, 0, 0);
+        ctx.clearRect(0, 0, lebar, tinggi);
+
+        if (dataGrafik.length === 0) return;
+
+        const nilaiMaks = Math.max(...dataGrafik, 1);
+
+        ctx.beginPath();
+        ctx.strokeStyle = "#36a9d6";
+        ctx.lineWidth = 3;
+
+        dataGrafik.forEach((nilai, index) => {
+            const x = dataGrafik.length === 1
+                ? lebar / 2
+                : index * lebar / (dataGrafik.length - 1);
+
+            const y = tinggi - (nilai / nilaiMaks) * (tinggi - 20) - 10;
+
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+
+        ctx.stroke();
+    }
+
+    function setDisconnected() {
+        document.getElementById("status").textContent =
+            "● ESP32 Belum Terhubung";
+    }
+
+    // Data contoh untuk mencoba tampilan.
+    // Hapus bagian ini setelah data ESP32 sudah dihubungkan.
+    updateFromESP32({
+        debit: 2.5,
+        volume: 1.2
+    });
+</script>
+
+</body>
+</html>
